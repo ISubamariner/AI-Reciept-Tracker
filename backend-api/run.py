@@ -5,6 +5,16 @@ from app.models import User, UserRole
 
 app = create_app()
 
+def initialize_database(app):
+    """
+    Creates tables within the application context if they do not already exist.
+    """
+    with app.app_context():
+        # This function only creates tables that don't exist, making it safe to run at startup.
+        db.create_all()
+        print("Database tables initialized (if they didn't exist).")
+
+
 @app.shell_context_processor
 def make_shell_context():
     """
