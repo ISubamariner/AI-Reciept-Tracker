@@ -104,3 +104,36 @@ def upload_receipt():
         'transaction_id': new_transaction.id,
         'extracted_data': extracted_data
     }), 201
+
+
+@bp.route('/transactions', methods=['GET'])
+@jwt_required()
+def get_transactions():
+    """
+    Retrieves all transactions for the authenticated user.
+    Returns a list of transactions with receipt information.
+    """
+    user_id = g.current_user.id
+    
+    # Query transactions where the user is the payer
+    transactions = Transaction.query.filter_by(payer_id=user_id).order_by(Transaction.transaction_date.desc()).all()
+    
+    # Format the response
+    result = []
+    for txn in transactions:
+        result.append({
+            'id': txn.id,
+            'vendor_name': txn.vendor_name,
+            'receipt_number': txn.receipt_number,
+            'total_amount': float(txn.total_amount),
+            'transaction_date': txn.transaction_date.isoformat() if txn.transaction_date else None,
+            'description': txn.description,
+            'receipt_id': txn.receipt_id,
+            'image_url': txn.source_receipt.image_url if txn.source_receipt else None,
+            'status': txn.source_receipt.status if txn.source_receipt else None
+        })
+    
+    return jsonify({
+        'transactions': result,
+        'count': len(result)
+    }), 200

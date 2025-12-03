@@ -1,0 +1,17 @@
+# Python VENV
+venv/
+
+# Python generated files
+__pycache__/
+*.pyc
+*.log
+
+# Environment variables (KEEP SECRET!)
+.env
+backend-api/.env
+
+# Vue/Node generated directories
+node_modules/
+frontend/ai-receipt-ui/node_modules/
+frontend/ai-receipt-ui/dist/ # The optimized build output we deploy
+backend-api/.env

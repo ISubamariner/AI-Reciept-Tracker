@@ -20,8 +20,8 @@
         {{ isLoading ? 'Processing with Gemini...' : 'Analyze Receipt' }}
       </button>
 
-      <p v-if="successMessage" class="success-message">✅ {{ successMessage }}</p>
-      <p v-if="error" class="error-message">❌ {{ error }}</p>
+      <p v-if="successMessage" class="success-message"> {{ successMessage }}</p>
+      <p v-if="error" class="error-message"> {{ error }}</p>
     </form>
 
     <div v-if="extractedData" class="results-box">
@@ -80,73 +80,3 @@ button:disabled { background-color: #a0c9f1; cursor: not-allowed; }
 .results-box { margin-top: 25px; padding: 15px; background-color: #eee; border-radius: 4px; overflow-x: auto; }
 pre { white-space: pre-wrap; word-wrap: break-word; font-size: 0.9em; }
 </style>
-
----
-
-### 3. Configure Vue Router for Protection
-
-Finally, update **`src/router/index.js`** to import the new view and define the protected route with the required role metadata.
-
-```javascript
-// src/router/index.js (Final Update for Receipt Upload)
-
-// ... (Existing imports)
-import { createRouter, createWebHistory } from 'vue-router';
-import { useAuthStore } from '@/stores/auth';
-import HomeView from '../views/HomeView.vue';
-import LoginView from '../views/LoginView.vue';
-import RegisterView from '../views/RegisterView.vue';
-import ReceiptUploadView from '../views/ReceiptUploadView.vue';
-//Import the new view
-
-// ... (Router definition)
-const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
-  routes: [
-    {
-      path: '/',
-      name: 'home',
-      component: HomeView,
-    },
-    {
-      path: '/login',
-      name: 'login',
-      component: LoginView,
-    },
-    {
-      path: '/register',
-      name: 'register',
-      component: RegisterView,
-    },
-    // Protected Route: Only accessible to Loggers and Admins
-    {
-      path: '/upload',
-      name: 'upload',
-      component: ReceiptUploadView,
-      meta: { requiresAuth: true, requiredRoles: ['RECEIPT_LOGGER', 'SYSTEM_ADMIN'] }
-      //Define multiple roles
-    },
-  ],
-});
-
-// Global Navigation Guard (Update the role check logic)
-router.beforeEach((to, from, next) => {
-  const authStore = useAuthStore();
-  const requiresAuth = to.meta.requiresAuth;
-  const requiredRoles = to.meta.requiredRoles; // Check for multiple required roles
-
-  if (requiresAuth && !authStore.isAuthenticated) {
-    // 1. Not Authenticated: Redirect to login
-    next('/login');
-  } else if (requiresAuth && requiredRoles && !requiredRoles.includes(authStore.currentUserRole)) {
-    // 2. Insufficient Role: Redirect to home
-    console.warn(`Access denied for role: ${authStore.currentUserRole}. Required: ${requiredRoles.join(', ')}`);
-    // Optional: Add a flash message here to inform the user why they were redirected
-    next('/');
-  } else {
-    // 3. Authorized: Proceed
-    next();
-  }
-});
-
-export default router;
