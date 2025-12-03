@@ -2,14 +2,13 @@
 
 import os
 import json
-from google import genai
-from google.genai import types
+import google.generativeai as genai
 from config import Config
 
-# Initialize the Gemini Client using the key from config.py (.env file)
-client = genai.Client(api_key=Config.GEMINI_API_KEY)
+# Configure the Gemini API with your Google AI Studio API key
+genai.configure(api_key=Config.GEMINI_API_KEY)
 
-# Define the exact structured output we want from the model (using a Pydantic-like structure)
+# Define the exact structured output we want from the model
 # This is crucial for reliable data extraction.
 EXTRACTION_SCHEMA = {
     "type": "object",
@@ -18,7 +17,7 @@ EXTRACTION_SCHEMA = {
         "receipt_number": {"type": "string", "description": "The unique transaction number, often labeled INV or TNX."},
         "total_amount": {"type": "number", "description": "The final total amount paid."},
         "currency": {"type": "string", "description": "The currency of the transaction (e.g., USD, EUR)."},
-        "transaction_date": {"type": "string", "format": "date", "description": "The date of the transaction in YYYY-MM-DD format."},
+        "transaction_date": {"type": "string", "description": "The date of the transaction in YYYY-MM-DD format."},
     },
     "required": ["vendor_name", "total_amount", "transaction_date"],
 }
@@ -34,31 +33,63 @@ def extract_receipt_data(image_url: str):
         A dictionary of structured data or None if extraction fails.
     """
     try:
-        # Load the image from the URL (Gemini can process images directly from URLs)
-        image_part = types.Part.from_uri(uri=image_url, mime_type="image/jpeg")
-
-        # Define the prompt
-        prompt = (
-            "You are an expert financial data extraction system. Extract the requested fields "
-            "from the provided receipt image. Ensure the output strictly follows the JSON schema. "
-            "If a field is not found, omit it unless it is required."
+        # Initialize the model with JSON mode for structured output
+        model = genai.GenerativeModel(
+            model_name='gemini-2.5-flash',
+            generation_config={
+                "temperature": 0.1,  # Lower temperature for more consistent extraction
+            }
         )
 
-        # Configure the model for structured JSON output
-        config = types.GenerateContentConfig(
-            response_mime_type="application/json",
-            response_schema=EXTRACTION_SCHEMA,
-        )
+        # Define the prompt with clear instructions
+        prompt = """
+        You are an expert financial data extraction system. Extract the following information from the receipt image:
+        
+        - vendor_name: The name of the store or vendor
+        - receipt_number: The unique transaction number (often labeled as INV, TNX, or Receipt #)
+        - total_amount: The final total amount paid (just the number, no currency symbol)
+        - currency: The currency of the transaction (e.g., USD, EUR, GBP)
+        - transaction_date: The date of the transaction in YYYY-MM-DD format
+        
+        Return ONLY a valid JSON object with these fields. No additional text, no markdown formatting, just the raw JSON.
+        If a field cannot be found, use null for optional fields.
+        Ensure vendor_name, total_amount, and transaction_date are always present.
+        
+        Example format:
+        {"vendor_name": "Example Store", "receipt_number": "INV-12345", "total_amount": 45.99, "currency": "USD", "transaction_date": "2024-01-15"}
+        """
 
-        response = client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=[prompt, image_part],
-            config=config,
-        )
-
+        # For image URLs, we need to download the image first
+        import requests
+        from io import BytesIO
+        from PIL import Image
+        
+        # Download the image
+        print(f"Downloading image from: {image_url}")
+        response = requests.get(image_url)
+        response.raise_for_status()
+        img = Image.open(BytesIO(response.content))
+        
+        # Generate content with the image
+        print("Sending image to Gemini for analysis...")
+        response = model.generate_content([prompt, img])
+        
+        # Extract the text response
+        response_text = response.text.strip()
+        print(f"Raw response from Gemini: {response_text}")
+        
+        # Clean up the response if it contains markdown code blocks
+        if response_text.startswith("```"):
+            # Remove markdown code blocks
+            response_text = response_text.replace("```json", "").replace("```", "").strip()
+        
         # Parse the JSON string result
-        return json.loads(response.text)
+        extracted_data = json.loads(response_text)
+        print(f"Successfully extracted data: {extracted_data}")
+        return extracted_data
 
     except Exception as e:
         print(f"Gemini API Error: {e}")
+        import traceback
+        traceback.print_exc()
         return None
