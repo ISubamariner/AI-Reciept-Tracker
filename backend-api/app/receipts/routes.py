@@ -50,11 +50,13 @@ def upload_receipt():
     extracted_data = extract_receipt_data(image_url=image_url)
     
     # 4. Handle Extraction Failure
-    if not extracted_data:
+    if not extracted_data or 'error' in extracted_data:
         new_receipt.status = 'ERROR'
+        error_msg = extracted_data.get('error', 'Unknown error') if extracted_data else 'AI extraction returned no data'
         db.session.commit()
         return jsonify({
-            'message': 'AI extraction failed. Please check the image or API key.',
+            'message': 'AI extraction failed.',
+            'error': error_msg,
             'receipt_id': receipt_id
         }), 500
         

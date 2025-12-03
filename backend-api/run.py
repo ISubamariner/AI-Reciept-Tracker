@@ -23,4 +23,9 @@ def make_shell_context():
     return {'db': db, 'User': User, 'UserRole': UserRole}
 
 if __name__ == '__main__':
-    app.run(debug=False)
+    # Initialize database tables
+    initialize_database(app)
+    
+    # Run the Flask app
+    # Using use_reloader=False to avoid reloading issues in development
+    app.run(debug=True, host='127.0.0.1', port=5000, use_reloader=False)

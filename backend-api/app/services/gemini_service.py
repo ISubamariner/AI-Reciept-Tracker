@@ -5,8 +5,18 @@ import json
 import google.generativeai as genai
 from config import Config
 
-# Configure the Gemini API with your Google AI Studio API key
-genai.configure(api_key=Config.GEMINI_API_KEY)
+# Gemini API will be configured when first used (lazy initialization)
+_gemini_configured = False
+
+def _ensure_gemini_configured():
+    """Configure Gemini API if not already configured"""
+    global _gemini_configured
+    if not _gemini_configured:
+        api_key = Config.GEMINI_API_KEY
+        if not api_key:
+            raise ValueError("GEMINI_API_KEY is not set in environment variables")
+        genai.configure(api_key=api_key)
+        _gemini_configured = True
 
 # Define the exact structured output we want from the model
 # This is crucial for reliable data extraction.
@@ -33,6 +43,8 @@ def extract_receipt_data(image_url: str):
         A dictionary of structured data or None if extraction fails.
     """
     try:
+        # Ensure Gemini is configured before using
+        _ensure_gemini_configured()
         # Initialize the model with JSON mode for structured output
         model = genai.GenerativeModel(
             model_name='gemini-2.5-flash',
@@ -64,9 +76,12 @@ def extract_receipt_data(image_url: str):
         from io import BytesIO
         from PIL import Image
         
-        # Download the image
+        # Download the image with proper headers
         print(f"Downloading image from: {image_url}")
-        response = requests.get(image_url)
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+        response = requests.get(image_url, headers=headers, timeout=30)
         response.raise_for_status()
         img = Image.open(BytesIO(response.content))
         
@@ -88,8 +103,19 @@ def extract_receipt_data(image_url: str):
         print(f"Successfully extracted data: {extracted_data}")
         return extracted_data
 
+    except requests.exceptions.RequestException as e:
+        print(f"Image Download Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return {'error': f'Failed to download image: {str(e)}'}
+    except json.JSONDecodeError as e:
+        print(f"JSON Parsing Error: {e}")
+        print(f"Response text was: {response_text if 'response_text' in locals() else 'N/A'}")
+        import traceback
+        traceback.print_exc()
+        return {'error': f'Failed to parse Gemini response: {str(e)}'}
     except Exception as e:
         print(f"Gemini API Error: {e}")
         import traceback
         traceback.print_exc()
-        return None
+        return {'error': f'Gemini API error: {str(e)}'}
