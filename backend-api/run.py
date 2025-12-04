@@ -23,9 +23,23 @@ def make_shell_context():
     return {'db': db, 'User': User, 'UserRole': UserRole}
 
 if __name__ == '__main__':
-    # Initialize database tables
-    initialize_database(app)
-    
-    # Run the Flask app
-    # Using use_reloader=False to avoid reloading issues in development
-    app.run(debug=True, host='127.0.0.1', port=5000, use_reloader=False)
+    try:
+        # Initialize database tables
+        initialize_database(app)
+        
+        # Use Waitress WSGI server for Windows compatibility
+        # Waitress is production-grade and doesn't have the issues Flask's dev server has on Windows
+        print("="*60)
+        print("Starting server with Waitress (production-ready WSGI server)")
+        print("Server will be available at: http://127.0.0.1:5000")
+        print("Press CTRL+C to quit")
+        print("="*60)
+        
+        from waitress import serve
+        serve(app, host='127.0.0.1', port=5000, threads=4)
+    except Exception as e:
+        print(f"\nERROR: Failed to start server!")
+        print(f"Error: {e}")
+        import traceback
+        traceback.print_exc()
+        input("\nPress Enter to exit...")

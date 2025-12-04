@@ -1,5 +1,26 @@
-/* main.css */
-body {
-    margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-}
+/**
+ * Main CSS Entry Point
+ *
+ * This file imports the consolidated fintech theme and serves as the
+ * entry point for all global styles in the application.
+ *
+ * The fintech-theme.css file contains:
+ * - Color palette (Wildflowers theme - calming greens & purples)
+ * - Layout components (sidebar navigation, content areas)
+ * - UI components (cards, forms, buttons, tables, badges, alerts)
+ * - Utility classes (spacing, display, flex, borders)
+ * - Responsive design rules
+ * - Accessibility features
+ *
+ * For customization and detailed documentation, see:
+ * - fintech-theme.css (theme implementation)
+ * - THEME_DOCUMENTATION.md (usage guide)
+ */
+
+/* Import consolidated fintech theme */
+@import './fintech-theme.css';
+
+/**
+ * Application-specific overrides and extensions
+ * Add any app-specific styles below this line
+ */

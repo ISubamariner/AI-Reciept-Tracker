@@ -1,34 +1,96 @@
+<!--
+  RegisterView.vue - User Registration Page
+
+  Handles new user registration with form validation and error handling.
+  Uses fintech theme components for consistent styling.
+-->
+
 <template>
-  <div class="auth-container">
-    <h2>User Registration</h2>
-    <form @submit.prevent="handleRegister">
-      <div class="form-group">
-        <label for="username">Username</label>
-        <input type="text" id="username" v-model="username" required>
+  <div class="content-body">
+    <div class="card" style="max-width: 450px; margin: 0 auto;">
+      <div class="card-header">
+        <h2 class="card-title text-center">📝 User Registration</h2>
+        <p class="card-subtitle text-center">Create your account to get started</p>
       </div>
-      <div class="form-group">
-        <label for="email">Email</label>
-        <input type="email" id="email" v-model="email" required>
+
+      <div class="card-body">
+        <form @submit.prevent="handleRegister">
+          <!-- Username Field -->
+          <div class="form-group">
+            <label for="username" class="form-label">Username</label>
+            <input
+              type="text"
+              id="username"
+              v-model="username"
+              class="form-input"
+              placeholder="Choose a username"
+              required
+            >
+          </div>
+
+          <!-- Email Field -->
+          <div class="form-group">
+            <label for="email" class="form-label">Email</label>
+            <input
+              type="email"
+              id="email"
+              v-model="email"
+              class="form-input"
+              placeholder="your.email@example.com"
+              required
+            >
+          </div>
+
+          <!-- Password Field -->
+          <div class="form-group">
+            <label for="password" class="form-label">Password</label>
+            <input
+              type="password"
+              id="password"
+              v-model="password"
+              class="form-input"
+              placeholder="Create a strong password"
+              required
+            >
+          </div>
+
+          <!-- Role Field -->
+          <div class="form-group">
+            <label for="role" class="form-label">Role</label>
+            <select id="role" v-model="role" class="form-select">
+              <option value="BASIC_USER">Basic User</option>
+              <option value="RECEIPT_LOGGER">Receipt Logger</option>
+              <option value="SYSTEM_ADMIN">System Admin</option>
+            </select>
+            <span class="form-hint">Select your account role (for testing purposes)</span>
+          </div>
+
+          <!-- Success Alert -->
+          <div v-if="successMessage" class="alert alert-success">
+            ✓ {{ successMessage }}
+          </div>
+
+          <!-- Error Alert -->
+          <div v-if="error" class="alert alert-error">
+            {{ error }}
+          </div>
+
+          <!-- Submit Button -->
+          <button type="submit" class="btn btn-primary btn-lg btn-block" :disabled="isLoading">
+            {{ isLoading ? '🔄 Registering...' : '📝 Create Account' }}
+          </button>
+        </form>
       </div>
-      <div class="form-group">
-        <label for="password">Password</label>
-        <input type="password" id="password" v-model="password" required>
+
+      <div class="card-footer text-center">
+        <p class="text-secondary">
+          Already have an account?
+          <router-link to="/login" style="color: var(--color-primary); font-weight: var(--font-weight-semibold);">
+            Login here
+          </router-link>
+        </p>
       </div>
-      <div class="form-group">
-        <label for="role">Role (Optional, for testing)</label>
-        <select id="role" v-model="role">
-          <option value="BASIC_USER">Basic User</option>
-          <option value="RECEIPT_LOGGER">Receipt Logger</option>
-          <option value="SYSTEM_ADMIN">System Admin</option>
-        </select>
-      </div>
-      <button type="submit" :disabled="isLoading">
-        {{ isLoading ? 'Registering...' : 'Register' }}
-      </button>
-      <p v-if="successMessage" class="success-message">{{ successMessage }}</p>
-      <p v-if="error" class="error-message">{{ error }}</p>
-    </form>
-    <p>Already have an account? <router-link to="/login">Login here</router-link></p>
+    </div>
   </div>
 </template>
 
@@ -43,11 +105,14 @@ const router = useRouter();
 const username = ref('');
 const email = ref('');
 const password = ref('');
-const role = ref('BASIC_USER'); // Default role
+const role = ref('BASIC_USER');
 const isLoading = ref(false);
 const error = ref('');
 const successMessage = ref('');
 
+/**
+ * Handle registration form submission
+ */
 const handleRegister = async () => {
   isLoading.value = true;
   error.value = '';
@@ -79,13 +144,3 @@ const handleRegister = async () => {
   }
 };
 </script>
-
-<style scoped>
-.auth-container { max-width: 400px; margin: 50px auto; padding: 20px; border: 1px solid #ccc; border-radius: 8px; }
-.form-group { margin-bottom: 15px; }
-label { display: block; margin-bottom: 5px; font-weight: bold; }
-input, select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
-button { width: 100%; padding: 10px; background-color: #42b883; color: white; border: none; border-radius: 4px; cursor: pointer; transition: background-color 0.3s; }
-.success-message { color: green; margin-top: 10px; }
-.error-message { color: red; margin-top: 10px; }
-</style>

@@ -1,28 +1,74 @@
+<!--
+  LoginView.vue - User Login Page
+
+  Handles user authentication with form validation and error handling.
+  Uses fintech theme components for consistent styling.
+-->
+
 <template>
-  <div class="auth-container">
-    <h2>User Login</h2>
-    <form @submit.prevent="handleLogin">
-      <div class="form-group">
-        <label for="username">Username</label>
-        <input type="text" id="username" v-model="username" required>
+  <div class="content-body">
+    <div class="card" style="max-width: 450px; margin: 0 auto;">
+      <div class="card-header">
+        <h2 class="card-title text-center">🔐 User Login</h2>
+        <p class="card-subtitle text-center">Sign in to access your account</p>
       </div>
-      <div class="form-group">
-        <label for="password">Password</label>
-        <input type="password" id="password" v-model="password" required>
+
+      <div class="card-body">
+        <form @submit.prevent="handleLogin">
+          <!-- Username Field -->
+          <div class="form-group">
+            <label for="username" class="form-label">Username</label>
+            <input
+              type="text"
+              id="username"
+              v-model="username"
+              class="form-input"
+              placeholder="Enter your username"
+              required
+            >
+          </div>
+
+          <!-- Password Field -->
+          <div class="form-group">
+            <label for="password" class="form-label">Password</label>
+            <input
+              type="password"
+              id="password"
+              v-model="password"
+              class="form-input"
+              placeholder="Enter your password"
+              required
+            >
+          </div>
+
+          <!-- Error Alert -->
+          <div v-if="error" class="alert alert-error">
+            {{ error }}
+          </div>
+
+          <!-- Submit Button -->
+          <button type="submit" class="btn btn-primary btn-lg btn-block" :disabled="isLoading">
+            {{ isLoading ? '🔄 Logging In...' : '🔐 Login' }}
+          </button>
+        </form>
       </div>
-      <button type="submit" :disabled="isLoading">
-        {{ isLoading ? 'Logging In...' : 'Login' }}
-      </button>
-      <p v-if="error" class="error-message">{{ error }}</p>
-    </form>
-    <p>Don't have an account? <router-link to="/register">Register here</router-link></p>
+
+      <div class="card-footer text-center">
+        <p class="text-secondary">
+          Don't have an account?
+          <router-link to="/register" style="color: var(--color-primary); font-weight: var(--font-weight-semibold);">
+            Register here
+          </router-link>
+        </p>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { useAuthStore } from '@/stores/auth'; // @ is a webpack alias for /src
+import { useAuthStore } from '@/stores/auth';
 
 const authStore = useAuthStore();
 const router = useRouter();
@@ -32,6 +78,9 @@ const password = ref('');
 const isLoading = ref(false);
 const error = ref('');
 
+/**
+ * Handle login form submission
+ */
 const handleLogin = async () => {
   isLoading.value = true;
   error.value = '';
@@ -45,11 +94,11 @@ const handleLogin = async () => {
     // Call the login action in the Pinia store
     await authStore.login(credentials);
 
-    // Redirect to the home page or a protected area upon successful login
+    // Redirect to the home page upon successful login
     router.push('/');
 
   } catch (err) {
-    // Display error message from the backend (e.g., Invalid credentials)
+    // Display error message from the backend
     error.value = err.message || 'Login failed. Please check your credentials.';
     console.error(err);
 
@@ -58,14 +107,3 @@ const handleLogin = async () => {
   }
 };
 </script>
-
-<style scoped>
-.auth-container { max-width: 400px; margin: 50px auto; padding: 20px; border: 1px solid #ccc; border-radius: 8px; }
-.form-group { margin-bottom: 15px; }
-label { display: block; margin-bottom: 5px; font-weight: bold; }
-input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
-button { width: 100%; padding: 10px; background-color: #42b883; color: white; border: none; border-radius: 4px; cursor: pointer; transition: background-color 0.3s; }
-button:hover:not(:disabled) { background-color: #368266; }
-button:disabled { background-color: #a5d8c6; cursor: not-allowed; }
-.error-message { color: red; margin-top: 10px; }
-</style>

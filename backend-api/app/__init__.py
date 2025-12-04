@@ -22,6 +22,14 @@ def create_app(config_class=Config):
     db.init_app(app)
     bcrypt.init_app(app)
     
+    # Add error handlers
+    @app.errorhandler(Exception)
+    def handle_exception(e):
+        import traceback
+        app.logger.error(f"Unhandled exception: {e}")
+        app.logger.error(traceback.format_exc())
+        return {'error': 'Internal server error', 'message': str(e)}, 500
+    
     # Import models so they are recognized by the ORM
     from app import models 
     

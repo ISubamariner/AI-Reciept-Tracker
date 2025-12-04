@@ -52,25 +52,31 @@ def register():
 @bp.route('/login', methods=['POST'])
 def login():
     """API endpoint for user login and JWT token generation."""
-    data = request.get_json()
+    try:
+        data = request.get_json()
 
-    # 1. Input Validation
-    if not data or not data.get('username') or not data.get('password'):
-        return jsonify({'message': 'Missing username or password.'}), 400
+        # 1. Input Validation
+        if not data or not data.get('username') or not data.get('password'):
+            return jsonify({'message': 'Missing username or password.'}), 400
 
-    # 2. Verify User Credentials
-    user = User.query.filter_by(username=data['username']).first()
-    
-    if user is None or not user.check_password(data['password']):
-        return jsonify({'message': 'Invalid username or password.'}), 401 # 401: Unauthorized
+        # 2. Verify User Credentials
+        user = User.query.filter_by(username=data['username']).first()
+        
+        if user is None or not user.check_password(data['password']):
+            return jsonify({'message': 'Invalid username or password.'}), 401 # 401: Unauthorized
 
-    # 3. Generate and return JWT
-    # The token is the key to accessing protected routes
-    token = user.generate_auth_token()
-    
-    return jsonify({
-        'message': 'Login successful.',
-        'access_token': token,
-        'token_type': 'Bearer',
-        'expires_in': 3600 # 1 hour
-    })
+        # 3. Generate and return JWT
+        # The token is the key to accessing protected routes
+        token = user.generate_auth_token()
+        
+        return jsonify({
+            'message': 'Login successful.',
+            'access_token': token,
+            'token_type': 'Bearer',
+            'expires_in': 3600 # 1 hour
+        })
+    except Exception as e:
+        import traceback
+        print(f"Login error: {e}")
+        print(traceback.format_exc())
+        return jsonify({'message': 'Internal server error', 'error': str(e)}), 500

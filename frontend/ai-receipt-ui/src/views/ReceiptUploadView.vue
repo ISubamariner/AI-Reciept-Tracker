@@ -1,32 +1,94 @@
+<!--
+  ReceiptUploadView.vue - Receipt Upload & Processing Page
+
+  Allows users to upload receipt images for AI processing.
+  Uses fintech theme components for consistent styling.
+-->
+
 <template>
-  <div class="upload-container">
-    <h2>AI Receipt Processor</h2>
-    <p>Current Role: <strong>{{ authStore.currentUserRole }}</strong></p>
-
-    <form @submit.prevent="handleUpload">
-      <div class="form-group">
-        <label for="imageUrl">Receipt Image URL</label>
-        <input
-          type="url"
-          id="imageUrl"
-          v-model="imageUrl"
-          placeholder="e.g., https://myserver.com/receipt.jpg"
-          required
-        >
-        <small class="hint">Note: In a real app, this would be a file upload to cloud storage (S3/R2).</small>
+  <div class="content-body">
+    <!-- Page Header -->
+    <div class="card mb-4">
+      <div class="card-header">
+        <h2 class="card-title">📤 AI Receipt Processor</h2>
+        <p class="card-subtitle">
+          Upload your receipt and let AI extract transaction details
+        </p>
       </div>
+      <div class="card-body">
+        <div class="d-flex align-center gap-2">
+          <span class="text-secondary">Current Role:</span>
+          <span class="badge badge-info">{{ authStore.currentUserRole }}</span>
+        </div>
+      </div>
+    </div>
 
-      <button type="submit" :disabled="isLoading">
-        {{ isLoading ? 'Processing with Gemini...' : 'Analyze Receipt' }}
-      </button>
+    <!-- Upload Form Card -->
+    <div class="card mb-4">
+      <div class="card-body">
+        <form @submit.prevent="handleUpload">
+          <!-- Image URL Field -->
+          <div class="form-group">
+            <label for="imageUrl" class="form-label">📎 Receipt Image URL</label>
+            <input
+              type="url"
+              id="imageUrl"
+              v-model="imageUrl"
+              class="form-input"
+              placeholder="e.g., https://myserver.com/receipt.jpg"
+              required
+            >
+            <span class="form-hint">
+              💡 Note: In a production app, this would be a file upload to cloud storage (S3/R2).
+            </span>
+          </div>
 
-      <p v-if="successMessage" class="success-message"> {{ successMessage }}</p>
-      <p v-if="error" class="error-message"> {{ error }}</p>
-    </form>
+          <!-- Success Alert -->
+          <div v-if="successMessage" class="alert alert-success">
+            ✓ {{ successMessage }}
+          </div>
 
-    <div v-if="extractedData" class="results-box">
-      <h3>Extracted Transaction Data (Saved to DB)</h3>
-      <pre>{{ JSON.stringify(extractedData, null, 2) }}</pre>
+          <!-- Error Alert -->
+          <div v-if="error" class="alert alert-error">
+            {{ error }}
+          </div>
+
+          <!-- Submit Button -->
+          <button type="submit" class="btn btn-primary btn-lg btn-block" :disabled="isLoading">
+            {{ isLoading ? '🔄 Processing with AI...' : '🤖 Analyze Receipt' }}
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Results Card -->
+    <div v-if="extractedData" class="card fade-in">
+      <div class="card-header">
+        <h3 class="card-title">📊 Extracted Transaction Data</h3>
+        <p class="card-subtitle">Successfully saved to database</p>
+      </div>
+      <div class="card-body">
+        <div class="table-container">
+          <table class="table">
+            <tbody>
+              <tr v-for="(value, key) in extractedData" :key="key">
+                <td style="font-weight: var(--font-weight-semibold); text-transform: capitalize;">
+                  {{ formatKey(key) }}
+                </td>
+                <td>{{ formatValue(value) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Raw JSON (collapsible) -->
+        <details class="mt-3">
+          <summary style="cursor: pointer; font-weight: var(--font-weight-semibold); color: var(--color-primary);">
+            View Raw JSON
+          </summary>
+          <pre style="margin-top: var(--spacing-md); padding: var(--spacing-md); background-color: var(--color-background-alt); border: var(--border-width) solid var(--color-border); border-radius: var(--border-radius); overflow-x: auto; font-family: var(--font-family-mono); font-size: var(--font-size-sm);">{{ JSON.stringify(extractedData, null, 2) }}</pre>
+        </details>
+      </div>
     </div>
   </div>
 </template>
@@ -44,6 +106,9 @@ const error = ref('');
 const successMessage = ref('');
 const extractedData = ref(null);
 
+/**
+ * Handle receipt upload and processing
+ */
 const handleUpload = async () => {
   isLoading.value = true;
   error.value = '';
@@ -51,32 +116,29 @@ const handleUpload = async () => {
   extractedData.value = null;
 
   try {
-    // 1. Call the dedicated service
     const result = await receiptService.uploadReceipt(imageUrl.value);
-
     successMessage.value = `Success! Transaction ID ${result.transaction_id} created.`;
     extractedData.value = result.extracted_data;
-
   } catch (err) {
-    // 2. Display the role-based access error or general error
     error.value = err.message || 'An unknown error occurred during processing.';
-
   } finally {
     isLoading.value = false;
   }
 };
-</script>
 
-<style scoped>
-.upload-container { max-width: 600px; margin: 50px auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px; background-color: #f9f9f9; }
-.form-group { margin-bottom: 20px; }
-label { display: block; margin-bottom: 8px; font-weight: bold; }
-input { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
-.hint { font-size: 0.8em; color: #666; margin-top: 5px; }
-button { padding: 10px 20px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; transition: background-color 0.3s; }
-button:disabled { background-color: #a0c9f1; cursor: not-allowed; }
-.success-message { color: green; font-weight: bold; margin-top: 15px; }
-.error-message { color: red; font-weight: bold; margin-top: 15px; }
-.results-box { margin-top: 25px; padding: 15px; background-color: #eee; border-radius: 4px; overflow-x: auto; }
-pre { white-space: pre-wrap; word-wrap: break-word; font-size: 0.9em; }
-</style>
+/**
+ * Format object keys for display
+ */
+const formatKey = (key) => {
+  return key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+};
+
+/**
+ * Format values for display
+ */
+const formatValue = (value) => {
+  if (value === null || value === undefined) return 'N/A';
+  if (typeof value === 'object') return JSON.stringify(value);
+  return value;
+};
+</script>
