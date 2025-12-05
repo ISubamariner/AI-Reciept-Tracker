@@ -7,6 +7,8 @@ import LoginView from '../views/LoginView.vue'; // Import new views
 import RegisterView from '../views/RegisterView.vue';
 import ReceiptUploadView from '../views/ReceiptUploadView.vue';
 import TransactionsView from '../views/TransactionsView.vue';
+import UserManagementView from '../views/UserManagementView.vue';
+import AuditLogsView from '../views/AuditLogsView.vue';
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -37,6 +39,18 @@ const router = createRouter({
       name: 'transactions',
       component: TransactionsView,
       meta: { requiresAuth: true }
+    },
+    {
+      path: '/users',
+      name: 'users',
+      component: UserManagementView,
+      meta: { requiresAuth: true, requiredRole: 'System Admin' }
+    },
+    {
+      path: '/audit-logs',
+      name: 'audit-logs',
+      component: AuditLogsView,
+      meta: { requiresAuth: true, requiredRole: 'System Admin' }
     },
   ],
 });

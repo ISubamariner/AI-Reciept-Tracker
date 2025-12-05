@@ -16,3 +16,8 @@ class Config:
     
     # AI/Gemini API key
     GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
+    
+    # File upload settings
+    MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max file size
+    UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER') or 'uploads'
+    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'heic'}

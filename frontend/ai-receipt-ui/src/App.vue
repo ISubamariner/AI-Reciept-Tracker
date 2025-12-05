@@ -89,6 +89,19 @@ const closeMobileMenu = () => {
             </RouterLink>
           </div>
 
+          <!-- Admin Section (only for System Admin) -->
+          <div class="nav-section" v-if="authStore.user?.role === 'System Admin'">
+            <div class="nav-section-title">Administration</div>
+            <RouterLink to="/users" class="nav-item" @click="closeMobileMenu">
+              <span class="nav-item-icon">👥</span>
+              User Management
+            </RouterLink>
+            <RouterLink to="/audit-logs" class="nav-item" @click="closeMobileMenu">
+              <span class="nav-item-icon">📋</span>
+              Audit Logs
+            </RouterLink>
+          </div>
+
           <!-- Account Section -->
           <div class="nav-section">
             <div class="nav-section-title">Account</div>

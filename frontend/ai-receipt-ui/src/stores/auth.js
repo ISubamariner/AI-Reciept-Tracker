@@ -33,7 +33,11 @@ export const useAuthStore = defineStore('auth', {
                 const userPayload = JSON.parse(atob(token.split('.')[1]));
 
                 this.token = token;
-                this.user = { username: userPayload.username, id: userPayload.user_id };
+                this.user = {
+                    username: userPayload.username,
+                    id: userPayload.user_id,
+                    role: userPayload.role
+                };
                 this.role = userPayload.role;
                 this.isLoggedIn = true;
 

@@ -128,8 +128,12 @@ class Transaction(db.Model):
     receipt_number = db.Column(db.String(128), index=True)
     
     # Financial data (use Decimal in production for currency, but Float/Numeric for simplicity here)
-    total_amount = db.Column(db.Numeric(10, 2), nullable=False) 
+    total_amount = db.Column(db.Numeric(10, 2), nullable=False)
+    currency = db.Column(db.String(10), default='USD', nullable=False)  # Currency code (e.g., USD, EUR, GBP)
     transaction_date = db.Column(db.DateTime, index=True)
+    
+    # Payer information
+    payer_name = db.Column(db.String(128))  # Name extracted from receipt (e.g., card holder, customer name)
     
     # Status/Description
     description = db.Column(db.String(256))
@@ -144,3 +148,73 @@ class Transaction(db.Model):
 
     def __repr__(self):
         return f'<Transaction {self.id} Total: {self.total_amount}>'
+
+
+class AuditLog(db.Model):
+    """
+    Model for storing audit log entries for user sessions and API calls.
+    Tracks who did what, when, where, and the result.
+    """
+    __tablename__ = 'audit_logs'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    
+    # Who: User information
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)  # Null for unauthenticated requests
+    username = db.Column(db.String(64), nullable=True)  # Denormalized for performance/retention
+    user_role = db.Column(db.String(64), nullable=True)
+    
+    # What: Action details
+    action = db.Column(db.String(128), nullable=False)  # E.g., 'LOGIN', 'UPLOAD_RECEIPT', 'DELETE_USER'
+    resource_type = db.Column(db.String(64), nullable=True)  # E.g., 'Receipt', 'User', 'Transaction'
+    resource_id = db.Column(db.Integer, nullable=True)  # ID of the affected resource
+    
+    # How: Request details
+    method = db.Column(db.String(10), nullable=False)  # HTTP method: GET, POST, PUT, DELETE
+    endpoint = db.Column(db.String(256), nullable=False)  # API endpoint path
+    
+    # Where: Network information
+    ip_address = db.Column(db.String(45), nullable=True)  # IPv4 or IPv6
+    user_agent = db.Column(db.String(512), nullable=True)  # Browser/client information
+    
+    # When: Timestamp
+    timestamp = db.Column(db.DateTime, index=True, default=datetime.utcnow, nullable=False)
+    
+    # Result: Status and details
+    status_code = db.Column(db.Integer, nullable=True)  # HTTP status code
+    success = db.Column(db.Boolean, default=True, nullable=False)
+    error_message = db.Column(db.Text, nullable=True)  # Error details if failed
+    
+    # Additional context (flexible JSON field)
+    request_metadata = db.Column(JSONB, nullable=True)  # Additional context like query params, data changes, etc.
+    
+    # Session tracking
+    session_id = db.Column(db.String(128), nullable=True)  # For tracking user sessions
+    
+    # Relationship to User
+    user = db.relationship('User', backref=db.backref('audit_logs', lazy='dynamic'))
+    
+    def __repr__(self):
+        return f'<AuditLog {self.id}: {self.action} by {self.username} at {self.timestamp}>'
+    
+    def to_dict(self):
+        """Convert audit log to dictionary for API responses."""
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'username': self.username,
+            'user_role': self.user_role,
+            'action': self.action,
+            'resource_type': self.resource_type,
+            'resource_id': self.resource_id,
+            'method': self.method,
+            'endpoint': self.endpoint,
+            'ip_address': self.ip_address,
+            'user_agent': self.user_agent,
+            'timestamp': self.timestamp.isoformat() if self.timestamp else None,
+            'status_code': self.status_code,
+            'success': self.success,
+            'error_message': self.error_message,
+            'metadata': self.request_metadata,
+            'session_id': self.session_id
+        }

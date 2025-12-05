@@ -1,0 +1,17 @@
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+.env
+.venv
+venv/
+ENV/
+*.log
+.git
+.gitignore
+*.md
+node_modules
+frontend/ai-receipt-ui/node_modules
+frontend/ai-receipt-ui/dist

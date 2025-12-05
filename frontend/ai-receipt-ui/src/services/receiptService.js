@@ -28,6 +28,32 @@ export const receiptService = {
     },
 
     /**
+     * Uploads an image file to the backend for processing.
+     * The JWT token is automatically included via the Axios interceptor in auth.js.
+     * @param {File} file - The image file to upload.
+     * @returns {Promise<object>} The extracted data and transaction ID from the backend.
+     */
+    async uploadReceiptFile(file) {
+        try {
+            const formData = new FormData();
+            formData.append('image', file);
+
+            const response = await axios.post(`${API_URL}/receipts/upload`, formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data'
+                }
+            });
+            return response.data;
+        } catch (error) {
+            // Check for 403 (Forbidden - role mismatch) or other errors
+            if (error.response && error.response.status === 403) {
+                throw new Error("Permission Denied. You must have a 'RECEIPT_LOGGER' or 'SYSTEM_ADMIN' role.");
+            }
+            throw error.response ? error.response.data : error;
+        }
+    },
+
+    /**
      * Fetches all transactions for the authenticated user.
      * The JWT token is automatically included via the Axios interceptor in auth.js.
      * @returns {Promise<object>} An object containing the transactions array and count.

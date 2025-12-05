@@ -1,8 +1,10 @@
 # app/auth/routes.py
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, g
 from app import db
 from app.models import User, UserRole
+from app.services.audit_service import AuditService
+from app.utils import generate_session_id
 
 # Define the Blueprint. The URL prefix will be '/api/auth' when registered.
 bp = Blueprint('auth', __name__)
@@ -42,6 +44,18 @@ def register():
     db.session.add(user)
     db.session.commit()
 
+    # Log registration
+    AuditService.log_action(
+        action='USER_REGISTRATION',
+        resource_type='User',
+        resource_id=user.id,
+        username=username,
+        user_role=role,
+        status_code=201,
+        success=True,
+        metadata={'email': email}
+    )
+
     return jsonify({
         'message': 'User registered successfully.', 
         'user_id': user.id,
@@ -63,11 +77,31 @@ def login():
         user = User.query.filter_by(username=data['username']).first()
         
         if user is None or not user.check_password(data['password']):
+            # Log failed login attempt
+            AuditService.log_authentication(
+                action='LOGIN_FAILED',
+                username=data['username'],
+                success=False,
+                error_message='Invalid username or password',
+                metadata={'reason': 'invalid_credentials'}
+            )
             return jsonify({'message': 'Invalid username or password.'}), 401 # 401: Unauthorized
 
-        # 3. Generate and return JWT
-        # The token is the key to accessing protected routes
+        # 3. Generate session ID and JWT
+        session_id = generate_session_id()
         token = user.generate_auth_token()
+        
+        # Log successful login
+        AuditService.log_authentication(
+            action='LOGIN',
+            username=user.username,
+            success=True,
+            metadata={
+                'user_id': user.id,
+                'role': user.role,
+                'session_id': session_id
+            }
+        )
         
         return jsonify({
             'message': 'Login successful.',
@@ -79,4 +113,50 @@ def login():
         import traceback
         print(f"Login error: {e}")
         print(traceback.format_exc())
+        
+        # Log error
+        AuditService.log_authentication(
+            action='LOGIN_ERROR',
+            username=data.get('username') if data else 'unknown',
+            success=False,
+            error_message=str(e)
+        )
+        
         return jsonify({'message': 'Internal server error', 'error': str(e)}), 500
+
+
+@bp.route('/logout', methods=['POST'])
+def logout():
+    """API endpoint for user logout (audit logging only)."""
+    from app.utils import jwt_required
+    from functools import wraps
+    
+    # Try to extract user info if token is present
+    auth_header = request.headers.get('Authorization')
+    user_info = None
+    
+    if auth_header:
+        try:
+            token = auth_header.split()[1]
+            user = User.verify_auth_token(token)
+            if user:
+                user_info = {
+                    'user_id': user.id,
+                    'username': user.username,
+                    'role': user.role
+                }
+        except:
+            pass
+    
+    # Log logout
+    if user_info:
+        AuditService.log_authentication(
+            action='LOGOUT',
+            username=user_info['username'],
+            success=True,
+            metadata=user_info
+        )
+    
+    return jsonify({
+        'message': 'Logout successful.'
+    }), 200
