@@ -69,9 +69,11 @@
             <h3 class="card-title" style="margin: 0;">
               {{ txn.vendor_name || 'Unknown Vendor' }}
             </h3>
-            <span style="font-size: var(--font-size-xxl); font-weight: var(--font-weight-bold); color: var(--color-primary);">
-              ${{ txn.total_amount.toFixed(2) }}
-            </span>
+            <CurrencyAmount 
+              :amount="txn.original_amount || txn.total_amount" 
+              :currency="txn.original_currency || txn.currency || 'USD'"
+              size="lg"
+            />
           </div>
         </div>
 
@@ -114,6 +116,7 @@ import { ref, onMounted } from 'vue';
 import { RouterLink } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { receiptService } from '@/services/receiptService';
+import CurrencyAmount from '@/components/CurrencyAmount.vue';
 
 const authStore = useAuthStore();
 

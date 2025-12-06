@@ -40,6 +40,9 @@ class User(db.Model):
     
     # Optional: Track status
     is_active = db.Column(db.Boolean, default=True)
+    
+    # User preferences (nullable to avoid FK constraint before currency tables exist)
+    preferred_currency = db.Column(db.String(3), nullable=True, default='USD')
 
     # Relationship to transactions (will be defined later)
     # transactions = db.relationship('Transaction', backref='user', lazy='dynamic')
@@ -128,8 +131,11 @@ class Transaction(db.Model):
     receipt_number = db.Column(db.String(128), index=True)
     
     # Financial data (use Decimal in production for currency, but Float/Numeric for simplicity here)
-    total_amount = db.Column(db.Numeric(10, 2), nullable=False)
-    currency = db.Column(db.String(10), default='USD', nullable=False)  # Currency code (e.g., USD, EUR, GBP)
+    original_amount = db.Column(db.Numeric(10, 2), nullable=True)  # Original amount from receipt (nullable for backwards compatibility)
+    original_currency = db.Column(db.String(3), nullable=True, default='USD')  # Original currency (no FK to avoid dependency)
+    total_amount = db.Column(db.Numeric(10, 2), nullable=False)  # Amount in USD (base currency)
+    currency = db.Column(db.String(10), default='USD', nullable=False)  # Base currency (USD)
+    exchange_rate_used = db.Column(db.Numeric(20, 10), nullable=True)  # Rate used for conversion
     transaction_date = db.Column(db.DateTime, index=True)
     
     # Payer information
@@ -148,6 +154,68 @@ class Transaction(db.Model):
 
     def __repr__(self):
         return f'<Transaction {self.id} Total: {self.total_amount}>'
+
+
+class Currency(db.Model):
+    """
+    Model for storing available currencies with their metadata.
+    """
+    __tablename__ = 'currencies'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(3), unique=True, nullable=False, index=True)  # ISO 4217 code (e.g., USD, EUR, PHP)
+    name = db.Column(db.String(64), nullable=False)  # Full name (e.g., United States Dollar)
+    symbol = db.Column(db.String(10), nullable=False)  # Symbol (e.g., $, €, ₱)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<Currency {self.code} - {self.name}>'
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'code': self.code,
+            'name': self.name,
+            'symbol': self.symbol,
+            'is_active': self.is_active
+        }
+
+
+class ExchangeRate(db.Model):
+    """
+    Model for storing daily exchange rates with USD as base currency.
+    Updates every 12 hours.
+    """
+    __tablename__ = 'exchange_rates'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    currency_code = db.Column(db.String(3), db.ForeignKey('currencies.code'), nullable=False, index=True)
+    rate_to_usd = db.Column(db.Numeric(20, 10), nullable=False)  # Rate to convert to USD
+    rate_from_usd = db.Column(db.Numeric(20, 10), nullable=False)  # Rate to convert from USD
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+    source = db.Column(db.String(64), default='manual')  # Source of the rate (e.g., 'exchangerate-api', 'manual')
+    
+    # Relationship to currency
+    currency = db.relationship('Currency', backref=db.backref('exchange_rates', lazy='dynamic'))
+    
+    # Composite unique constraint to prevent duplicate rates for same currency at same time
+    __table_args__ = (
+        db.Index('idx_currency_timestamp', 'currency_code', 'timestamp'),
+    )
+    
+    def __repr__(self):
+        return f'<ExchangeRate {self.currency_code}: 1 USD = {self.rate_from_usd} at {self.timestamp}>'
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'currency_code': self.currency_code,
+            'rate_to_usd': float(self.rate_to_usd),
+            'rate_from_usd': float(self.rate_from_usd),
+            'timestamp': self.timestamp.isoformat() if self.timestamp else None,
+            'source': self.source
+        }
 
 
 class AuditLog(db.Model):

@@ -1,0 +1,21 @@
+# Development Dockerfile with uv for hot-reloading
+FROM python:3.11-slim
+
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+WORKDIR /usr/src/app
+
+# Copy dependency files
+COPY requirements.txt pyproject.toml* ./
+
+# Install dependencies using uv (much faster than pip)
+RUN uv pip install --system --no-cache -r requirements.txt
+
+# In development, code is mounted as volume
+# No need to copy application code here
+
+EXPOSE 5000
+
+# Use gunicorn with reload for development
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--reload", "--log-level", "debug", "run:app"]

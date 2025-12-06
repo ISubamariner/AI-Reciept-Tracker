@@ -54,17 +54,6 @@
             >
           </div>
 
-          <!-- Role Field -->
-          <div class="form-group">
-            <label for="role" class="form-label">Role</label>
-            <select id="role" v-model="role" class="form-select">
-              <option value="BASIC_USER">Basic User</option>
-              <option value="RECEIPT_LOGGER">Receipt Logger</option>
-              <option value="SYSTEM_ADMIN">System Admin</option>
-            </select>
-            <span class="form-hint">Select your account role (for testing purposes)</span>
-          </div>
-
           <!-- Success Alert -->
           <div v-if="successMessage" class="alert alert-success">
             ✓ {{ successMessage }}
@@ -105,7 +94,6 @@ const router = useRouter();
 const username = ref('');
 const email = ref('');
 const password = ref('');
-const role = ref('BASIC_USER');
 const isLoading = ref(false);
 const error = ref('');
 const successMessage = ref('');
@@ -123,7 +111,7 @@ const handleRegister = async () => {
       username: username.value,
       email: email.value,
       password: password.value,
-      role: role.value,
+      role: 'BASIC_USER',
     };
 
     await authStore.register(userData);

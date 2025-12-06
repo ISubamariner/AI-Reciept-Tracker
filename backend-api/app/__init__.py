@@ -36,6 +36,41 @@ def create_app(config_class=Config):
     # Import models so they are recognized by the ORM
     from app import models 
     
+    # Initialize MongoDB
+    from app.mongo_connector import init_mongo_app
+    init_mongo_app(app)
+    
+    # Initialize currency system and scheduler (only if tables exist)
+    with app.app_context():
+        try:
+            # Check if currency tables exist before initializing
+            from sqlalchemy import inspect
+            inspector = inspect(db.engine)
+            tables = inspector.get_table_names()
+            
+            if 'currencies' in tables and 'exchange_rates' in tables:
+                # Initialize currencies on first run
+                try:
+                    from app.services.currency_service import CurrencyService
+                    CurrencyService.initialize_currencies()
+                    app.logger.info("Currency system initialized successfully")
+                except Exception as e:
+                    app.logger.warning(f"Currency initialization warning: {e}")
+                
+                # Initialize scheduler for exchange rate updates
+                try:
+                    from app.services.scheduler_service import SchedulerService
+                    SchedulerService.initialize(app)
+                    app.logger.info("Scheduler initialized successfully")
+                except ImportError as e:
+                    app.logger.warning(f"Scheduler not available (APScheduler not installed): {e}")
+                except Exception as e:
+                    app.logger.warning(f"Scheduler initialization failed: {e}")
+            else:
+                app.logger.info("Currency tables not found. Run migration script to enable currency features.")
+        except Exception as e:
+            app.logger.warning(f"Currency system check failed: {e}")
+    
     # --- Register Blueprints ---
     from app.auth.routes import bp as auth_bp
     # All routes in auth_bp will be prefixed with /api/auth
@@ -49,6 +84,16 @@ def create_app(config_class=Config):
     
     from app.audit.routes import bp as audit_bp
     app.register_blueprint(audit_bp, url_prefix='/api')
+    
+    # Register currency blueprint (only if dependencies are available)
+    try:
+        from app.currency import currency_bp
+        app.register_blueprint(currency_bp, url_prefix='/api/currency')
+        app.logger.info("Currency endpoints registered successfully")
+    except ImportError as e:
+        app.logger.warning(f"Currency endpoints not available: {e}")
+    except Exception as e:
+        app.logger.error(f"Failed to register currency endpoints: {e}")
     # -------------------------
     
     # --- Swagger UI Configuration ---
@@ -80,12 +125,27 @@ def create_app(config_class=Config):
     @app.route('/api/health', methods=['GET'])
     def health_check():
         """Health check endpoint to verify API is running"""
+        from app.mongo_connector import MongoDBConnector
+        
+        # Check MongoDB status
+        mongodb_status = 'disconnected'
+        try:
+            mongo_db = MongoDBConnector.get_db()
+            if mongo_db is not None:
+                # Try a simple ping
+                mongo_db.client.admin.command('ping')
+                mongodb_status = 'connected'
+        except Exception as e:
+            app.logger.warning(f"MongoDB health check failed: {e}")
+            mongodb_status = 'disconnected'
+        
         return jsonify({
             'status': 'healthy',
             'timestamp': datetime.utcnow().isoformat() + 'Z',
             'version': '1.0.0',
             'services': {
                 'database': 'connected' if db.engine else 'disconnected',
+                'mongodb': mongodb_status,
                 'gemini_api': 'configured' if Config.GEMINI_API_KEY else 'not configured'
             }
         }), 200

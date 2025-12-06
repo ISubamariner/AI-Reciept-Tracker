@@ -1,10 +1,16 @@
-# Dockerfile (Updated for Production)
+# Dockerfile (Updated with uv for faster installation)
 FROM python:3.11-slim
+
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 WORKDIR /usr/src/app
 
+# Copy dependency files
 COPY requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
+
+# Install dependencies using uv (much faster than pip)
+RUN uv pip install --system --no-cache -r requirements.txt
 
 # Copy the rest of the application code
 COPY . .

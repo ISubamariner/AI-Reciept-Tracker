@@ -34,6 +34,10 @@
     {
       "name": "Audit",
       "description": "Audit log and activity tracking endpoints"
+    },
+    {
+      "name": "Currency",
+      "description": "Multi-currency support and exchange rate management"
     }
   ],
   "paths": {
@@ -1895,6 +1899,467 @@
           }
         }
       }
+    },
+    "/currency/currencies": {
+      "get": {
+        "tags": ["Currency"],
+        "summary": "Get all available currencies",
+        "description": "Retrieve a list of all supported currencies with their details",
+        "parameters": [
+          {
+            "name": "active_only",
+            "in": "query",
+            "description": "Filter to only active currencies",
+            "schema": {
+              "type": "boolean",
+              "default": true
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of currencies retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "currencies": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Currency"
+                      }
+                    },
+                    "count": {
+                      "type": "integer",
+                      "example": 24
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/currency/currencies/{code}": {
+      "get": {
+        "tags": ["Currency"],
+        "summary": "Get a specific currency",
+        "description": "Retrieve details of a specific currency by its ISO code",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "description": "ISO 4217 currency code (e.g., USD, PHP, EUR)",
+            "schema": {
+              "type": "string",
+              "example": "PHP"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Currency details retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "currency": {
+                      "$ref": "#/components/schemas/Currency"
+                    },
+                    "latest_rate": {
+                      "$ref": "#/components/schemas/ExchangeRate"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/currency/exchange-rates": {
+      "get": {
+        "tags": ["Currency"],
+        "summary": "Get all current exchange rates",
+        "description": "Retrieve the latest exchange rates for all active currencies (USD is base currency)",
+        "responses": {
+          "200": {
+            "description": "Exchange rates retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "rates": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                          "currency": {
+                            "$ref": "#/components/schemas/Currency"
+                          },
+                          "rate": {
+                            "$ref": "#/components/schemas/ExchangeRate"
+                          }
+                        }
+                      },
+                      "example": {
+                        "PHP": {
+                          "currency": {
+                            "id": 6,
+                            "code": "PHP",
+                            "name": "Philippine Peso",
+                            "symbol": "₱",
+                            "is_active": true
+                          },
+                          "rate": {
+                            "id": 100,
+                            "currency_code": "PHP",
+                            "rate_to_usd": 0.018,
+                            "rate_from_usd": 55.5,
+                            "timestamp": "2024-12-05T10:00:00",
+                            "source": "exchangerate-api"
+                          }
+                        }
+                      }
+                    },
+                    "count": {
+                      "type": "integer",
+                      "example": 24
+                    },
+                    "base_currency": {
+                      "type": "string",
+                      "example": "USD"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/currency/exchange-rates/{code}": {
+      "get": {
+        "tags": ["Currency"],
+        "summary": "Get exchange rate for a specific currency",
+        "description": "Retrieve the latest exchange rate for a specific currency",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "description": "ISO 4217 currency code",
+            "schema": {
+              "type": "string",
+              "example": "PHP"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Exchange rate retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "currency": {
+                      "$ref": "#/components/schemas/Currency"
+                    },
+                    "rate": {
+                      "$ref": "#/components/schemas/ExchangeRate"
+                    },
+                    "base_currency": {
+                      "type": "string",
+                      "example": "USD"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/currency/convert": {
+      "post": {
+        "tags": ["Currency"],
+        "summary": "Convert currency amount",
+        "description": "Convert an amount from one currency to another using the latest exchange rates",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["amount", "from_currency", "to_currency"],
+                "properties": {
+                  "amount": {
+                    "type": "number",
+                    "format": "float",
+                    "example": 100.0,
+                    "description": "Amount to convert"
+                  },
+                  "from_currency": {
+                    "type": "string",
+                    "example": "PHP",
+                    "description": "Source currency code"
+                  },
+                  "to_currency": {
+                    "type": "string",
+                    "example": "USD",
+                    "description": "Target currency code"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Currency conversion successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "original_amount": {
+                      "type": "number",
+                      "example": 100.0
+                    },
+                    "original_currency": {
+                      "type": "string",
+                      "example": "PHP"
+                    },
+                    "converted_amount": {
+                      "type": "number",
+                      "example": 1.8
+                    },
+                    "target_currency": {
+                      "type": "string",
+                      "example": "USD"
+                    },
+                    "rate_used": {
+                      "type": "number",
+                      "example": 0.018
+                    },
+                    "rate_timestamp": {
+                      "type": "string",
+                      "format": "date-time",
+                      "example": "2024-12-05T10:00:00"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/currency/user/preferred-currency": {
+      "get": {
+        "tags": ["Currency"],
+        "summary": "Get user's preferred currency",
+        "description": "Retrieve the currently authenticated user's preferred display currency",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User preferred currency retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "preferred_currency": {
+                      "type": "string",
+                      "example": "PHP"
+                    },
+                    "currency_details": {
+                      "$ref": "#/components/schemas/Currency"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      },
+      "put": {
+        "tags": ["Currency"],
+        "summary": "Update user's preferred currency",
+        "description": "Update the currently authenticated user's preferred display currency",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["currency_code"],
+                "properties": {
+                  "currency_code": {
+                    "type": "string",
+                    "example": "PHP",
+                    "description": "ISO 4217 currency code"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "User preferred currency updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Preferred currency updated successfully"
+                    },
+                    "preferred_currency": {
+                      "type": "string",
+                      "example": "PHP"
+                    },
+                    "currency_details": {
+                      "$ref": "#/components/schemas/Currency"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/currency/exchange-rates/update": {
+      "post": {
+        "tags": ["Currency"],
+        "summary": "Manually trigger exchange rate update",
+        "description": "Manually trigger an exchange rate update from the external API (System Admin only)",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Exchange rate update triggered successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Exchange rate update triggered successfully"
+                    },
+                    "updated": {
+                      "type": "boolean",
+                      "example": true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1970,13 +2435,33 @@
             "type": "string",
             "example": "INV-12345"
           },
+          "original_amount": {
+            "type": "number",
+            "format": "float",
+            "example": 500.00,
+            "description": "Original amount from receipt"
+          },
+          "original_currency": {
+            "type": "string",
+            "example": "PHP",
+            "description": "Original currency code from receipt"
+          },
           "total_amount": {
             "type": "string",
-            "example": "45.99"
+            "example": "9.00",
+            "description": "Amount converted to USD (base currency)"
           },
           "currency": {
             "type": "string",
-            "example": "USD"
+            "example": "USD",
+            "description": "Base currency (always USD)"
+          },
+          "exchange_rate_used": {
+            "type": "number",
+            "format": "float",
+            "example": 0.018,
+            "nullable": true,
+            "description": "Exchange rate used for conversion"
           },
           "transaction_date": {
             "type": "string",
@@ -2049,6 +2534,74 @@
           "is_active": {
             "type": "boolean",
             "example": true
+          },
+          "preferred_currency": {
+            "type": "string",
+            "example": "PHP",
+            "nullable": true,
+            "description": "User's preferred display currency"
+          }
+        }
+      },
+      "Currency": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 6
+          },
+          "code": {
+            "type": "string",
+            "example": "PHP",
+            "description": "ISO 4217 currency code"
+          },
+          "name": {
+            "type": "string",
+            "example": "Philippine Peso"
+          },
+          "symbol": {
+            "type": "string",
+            "example": "₱"
+          },
+          "is_active": {
+            "type": "boolean",
+            "example": true
+          }
+        }
+      },
+      "ExchangeRate": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 100
+          },
+          "currency_code": {
+            "type": "string",
+            "example": "PHP",
+            "description": "ISO 4217 currency code"
+          },
+          "rate_to_usd": {
+            "type": "number",
+            "format": "float",
+            "example": 0.018,
+            "description": "Rate to convert to USD (1 PHP = 0.018 USD)"
+          },
+          "rate_from_usd": {
+            "type": "number",
+            "format": "float",
+            "example": 55.5,
+            "description": "Rate to convert from USD (1 USD = 55.5 PHP)"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2024-12-05T10:00:00"
+          },
+          "source": {
+            "type": "string",
+            "example": "exchangerate-api",
+            "description": "Source of the exchange rate"
           }
         }
       },

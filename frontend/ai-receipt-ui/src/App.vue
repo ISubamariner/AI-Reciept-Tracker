@@ -13,10 +13,45 @@
 <script setup>
 import { RouterLink, RouterView } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { ref } from 'vue'
+import { useCurrencyStore } from '@/stores/currency'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import CurrencySelector from '@/components/CurrencySelector.vue'
 
 const authStore = useAuthStore()
+const currencyStore = useCurrencyStore()
 const mobileMenuOpen = ref(false)
+const currentTime = ref(new Date())
+let clockInterval = null
+
+/**
+ * Get timezone abbreviation from browser
+ */
+const getTimezone = () => {
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
+  return timezone
+}
+
+/**
+ * Format current time with timezone
+ */
+const formattedTime = computed(() => {
+  const options = {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true
+  }
+  const timeString = currentTime.value.toLocaleTimeString('en-US', options)
+  const timezone = getTimezone()
+  return `${timeString} (${timezone})`
+})
+
+/**
+ * Update clock every second
+ */
+const updateClock = () => {
+  currentTime.value = new Date()
+}
 
 /**
  * Toggle mobile menu
@@ -31,10 +66,39 @@ const toggleMobileMenu = () => {
 const closeMobileMenu = () => {
   mobileMenuOpen.value = false
 }
+
+/**
+ * Initialize currency store and clock on mount
+ */
+onMounted(async () => {
+  await currencyStore.initialize()
+  updateClock()
+  clockInterval = setInterval(updateClock, 1000)
+})
+
+/**
+ * Cleanup clock interval
+ */
+onBeforeUnmount(() => {
+  if (clockInterval) {
+    clearInterval(clockInterval)
+  }
+})
 </script>
 
 <template>
   <div class="app-container">
+    <!-- Sticky Top Bar -->
+    <header class="top-bar" :class="{ 'full-width': !authStore.isAuthenticated }">
+      <div class="top-bar-left">
+        <CurrencySelector />
+      </div>
+      <div class="top-bar-right">
+        <span class="clock-icon">🕐</span>
+        <span class="clock-time">{{ formattedTime }}</span>
+      </div>
+    </header>
+
     <!-- Mobile Overlay (click to close menu) -->
     <div
       v-if="mobileMenuOpen"
@@ -43,7 +107,7 @@ const closeMobileMenu = () => {
     ></div>
 
     <!-- Side Navigation -->
-    <aside class="sidebar" :class="{ 'mobile-open': mobileMenuOpen }">
+    <aside v-if="authStore.isAuthenticated" class="sidebar" :class="{ 'mobile-open': mobileMenuOpen }">
       <!-- Sidebar Header with Logo -->
       <div class="sidebar-header">
         <RouterLink to="/" class="sidebar-logo" @click="closeMobileMenu">
@@ -53,27 +117,8 @@ const closeMobileMenu = () => {
 
       <!-- Sidebar Navigation -->
       <nav class="sidebar-nav">
-        <!-- Public Navigation Section -->
-        <div class="nav-section" v-if="!authStore.isAuthenticated">
-          <div class="nav-section-title">Get Started</div>
-          <RouterLink to="/" class="nav-item" @click="closeMobileMenu">
-            <span class="nav-item-icon">🏠</span>
-            Home
-          </RouterLink>
-          <RouterLink to="/login" class="nav-item" @click="closeMobileMenu">
-            <span class="nav-item-icon">🔐</span>
-            Login
-          </RouterLink>
-          <RouterLink to="/register" class="nav-item" @click="closeMobileMenu">
-            <span class="nav-item-icon">📝</span>
-            Register
-          </RouterLink>
-        </div>
-
-        <!-- Authenticated Navigation Section -->
-        <div v-else>
-          <!-- Main Menu -->
-          <div class="nav-section">
+        <!-- Main Menu -->
+        <div class="nav-section">
             <div class="nav-section-title">Main Menu</div>
             <RouterLink to="/" class="nav-item" @click="closeMobileMenu">
               <span class="nav-item-icon">🏠</span>
@@ -82,6 +127,10 @@ const closeMobileMenu = () => {
             <RouterLink to="/upload" class="nav-item" @click="closeMobileMenu">
               <span class="nav-item-icon">📤</span>
               Upload Receipt
+            </RouterLink>
+            <RouterLink to="/pending" class="nav-item" @click="closeMobileMenu">
+              <span class="nav-item-icon">✓</span>
+              Validate Receipts
             </RouterLink>
             <RouterLink to="/transactions" class="nav-item" @click="closeMobileMenu">
               <span class="nav-item-icon">📊</span>
@@ -114,14 +163,14 @@ const closeMobileMenu = () => {
               Logout
             </a>
           </div>
-        </div>
       </nav>
     </aside>
 
     <!-- Main Content Area -->
-    <main class="main-content">
+    <main class="main-content" :class="{ 'no-sidebar': !authStore.isAuthenticated }">
       <!-- Mobile Menu Toggle -->
       <button
+        v-if="authStore.isAuthenticated"
         class="mobile-menu-toggle"
         @click="toggleMobileMenu"
         aria-label="Toggle navigation menu"
@@ -144,8 +193,69 @@ const closeMobileMenu = () => {
  * app-specific adjustments for the layout.
  */
 
+/* Sticky Top Bar */
+.top-bar {
+  position: fixed;
+  top: 0;
+  left: var(--sidebar-width);
+  right: 0;
+  height: 40px;
+  background-color: var(--color-primary);
+  border-bottom: 2px solid var(--color-primary-dark);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 var(--spacing-lg);
+  z-index: 1050;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.top-bar.full-width {
+  left: 0;
+}
+
+.top-bar-left {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  color: var(--color-white);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+.clock-icon {
+  font-size: 1.1em;
+}
+
+.clock-time {
+  font-family: var(--font-family-mono);
+  letter-spacing: 0.5px;
+}
+
+.top-bar-right {
+  display: flex;
+  align-items: center;
+}
+
+/* Adjust sidebar to account for top bar */
+.sidebar {
+  top: 0;
+  height: 100vh;
+}
+
+/* Adjust main content to account for top bar */
+.main-content {
+  margin-top: 40px;
+}
+
+.main-content.no-sidebar {
+  margin-left: 0;
+}
+
 /* Mobile Menu Toggle Button */
 .mobile-menu-toggle {
+  top: calc(40px + var(--spacing-md));
+
   display: none;
   position: fixed;
   top: var(--spacing-md);
@@ -204,6 +314,19 @@ const closeMobileMenu = () => {
 @media (max-width: 768px) {
   .mobile-menu-toggle {
     display: block;
+  }
+
+  .top-bar {
+    left: 0;
+    padding: 0 var(--spacing-sm);
+  }
+
+  .clock-time {
+    font-size: 0.75rem;
+  }
+
+  .top-bar-left {
+    gap: var(--spacing-xs);
   }
 }
 </style>

@@ -448,7 +448,33 @@ const closeDetails = () => {
 
 const formatTimestamp = (timestamp) => {
   if (!timestamp) return 'N/A'
-  return new Date(timestamp).toLocaleString()
+  
+  // Parse the timestamp - if it doesn't have timezone info, treat it as GMT+8
+  let date
+  if (timestamp.includes('Z') || timestamp.includes('+') || timestamp.includes('-')) {
+    // Timestamp already has timezone information
+    date = new Date(timestamp)
+  } else {
+    // Assume server timestamp is in GMT+8 (Asia/Manila timezone)
+    // Parse as if it's in GMT+8 and convert to local
+    const serverDate = new Date(timestamp)
+    // Get the timestamp value and adjust for GMT+8 offset (8 hours = 28800000 ms)
+    const utcTime = serverDate.getTime() - (8 * 60 * 60 * 1000)
+    date = new Date(utcTime)
+  }
+  
+  const options = {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true,
+    timeZoneName: 'short'
+  }
+  
+  return date.toLocaleString('en-US', options)
 }
 
 const getActionClass = (action) => {

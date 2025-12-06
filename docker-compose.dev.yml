@@ -1,3 +1,5 @@
+# Docker Compose configuration for development with uv
+
 services:
   postgres:
     image: postgres:15-alpine
@@ -43,15 +45,17 @@ services:
   backend:
     build:
       context: ./backend-api
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
       cache_from:
-        - pythonmoneytracker-backend:latest
-    image: pythonmoneytracker-backend:latest
-    container_name: pythonmoneytracker-backend
+        - pythonmoneytracker-backend:dev
+    image: pythonmoneytracker-backend:dev
+    container_name: pythonmoneytracker-backend-dev
     restart: unless-stopped
     ports:
       - "5000:5000"
     environment:
+      - FLASK_ENV=development
+      - FLASK_DEBUG=1
       - DATABASE_URL=postgresql://postgres:Admin%401234@postgres:5432/pythonmoneytracker
       - MONGODB_URL=mongodb://mongouser:Admin%401234@mongodb:27017/receipts?authSource=admin
       - SECRET_KEY=${SECRET_KEY}
@@ -59,6 +63,8 @@ services:
     volumes:
       - ./backend-api:/usr/src/app
       - backend_uploads:/usr/src/app/uploads
+      # Cache Python packages in named volume for faster rebuilds
+      - uv_cache:/root/.cache/uv
     depends_on:
       postgres:
         condition: service_healthy
@@ -66,7 +72,7 @@ services:
         condition: service_healthy
     networks:
       - app-network
-    command: gunicorn --bind 0.0.0.0:5000 --reload run:app
+    command: gunicorn --bind 0.0.0.0:5000 --reload --log-level debug --timeout 120 run:app
 
 volumes:
   postgres_data:
@@ -76,6 +82,8 @@ volumes:
   mongodb_config:
     driver: local
   backend_uploads:
+    driver: local
+  uv_cache:
     driver: local
 
 networks:

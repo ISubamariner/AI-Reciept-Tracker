@@ -9,6 +9,7 @@ import ReceiptUploadView from '../views/ReceiptUploadView.vue';
 import TransactionsView from '../views/TransactionsView.vue';
 import UserManagementView from '../views/UserManagementView.vue';
 import AuditLogsView from '../views/AuditLogsView.vue';
+import PendingReceiptsView from '../views/PendingReceiptsView.vue';
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -32,6 +33,12 @@ const router = createRouter({
       path: '/upload',
       name: 'upload',
       component: ReceiptUploadView,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/pending',
+      name: 'pending',
+      component: PendingReceiptsView,
       meta: { requiresAuth: true }
     },
     {
